@@ -1,0 +1,54 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: viapublica_db
+    environment:
+      POSTGRES_DB: viapublica
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./dsparcial-backend
+    container_name: viapublica_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/viapublica
+      SECRET_KEY: super-secret-key-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      USE_LOCAL_STORAGE: "true"
+      UPLOAD_DIR: /app/uploads
+      CORS_ORIGINS: http://localhost:8003,http://localhost:5173,http://localhost:80,http://localhost
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "8002:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./dsparcial-frontend
+      args:
+        VITE_API_URL: http://localhost:8002
+        VITE_GOOGLE_MAPS_KEY: AIzaSyDGapeAc3BXu8S6OVuqBu1RiqeVhT1HgxA
+    container_name: viapublica_frontend
+    ports:
+      - "8003:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads_data:
