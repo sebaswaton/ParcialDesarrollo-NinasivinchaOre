@@ -38,19 +38,51 @@ def get_incident(id: UUID, db: Session = Depends(get_db)):
     return IncidentService(db).get_incident(id)
 
 
-@router.post("", response_model=IncidentOut, status_code=201)
+@router.post(
+    "",
+    response_model=IncidentOut,
+    status_code=201,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["type", "description", "address", "lat", "lng"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["bache", "alumbrado", "basura", "seguridad", "emergencia"],
+                            },
+                            "description": {"type": "string", "minLength": 10},
+                            "address": {"type": "string", "minLength": 3},
+                            "lat": {"type": "number"},
+                            "lng": {"type": "number"},
+                            "media": {
+                                "type": "array",
+                                "items": {"type": "string", "format": "binary"},
+                                "description": "Archivos de imagen, video o audio (hasta 5)",
+                            },
+                        },
+                    }
+                }
+            },
+            "required": True,
+        }
+    },
+)
 def create_incident(
     type: IncidentType = Form(...),
     description: str = Form(..., min_length=10),
     address: str = Form(..., min_length=3),
     lat: float = Form(...),
     lng: float = Form(...),
-    media: List[UploadFile] = File(default=[]),
+    media: Optional[List[UploadFile]] = File(default=None),
     current_user: User = Depends(require_ciudadano),
     db: Session = Depends(get_db),
 ):
     return IncidentService(db).create_incident(
-        type, description, address, lat, lng, current_user, media
+        type, description, address, lat, lng, current_user, media or []
     )
 
 
